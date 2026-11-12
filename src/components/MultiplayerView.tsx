@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Users, Copy, Check, Play, UserPlus, Trophy, Medal, Award, ArrowRight, RotateCcw } from 'lucide-react';
+import { Users, Copy, Check, Play, UserPlus, Trophy, Medal, Award, ArrowRight, RotateCcw, CheckCircle2, Clock, ShieldCheck, Sparkles } from 'lucide-react';
 import { Question, PlayerScore, QuizAnswerRecord } from '../types';
 import { simulatedOpponents } from '../data/herbalData';
 import { sound } from '../utils/sound';
@@ -10,6 +10,18 @@ interface MultiplayerViewProps {
   playerName: string;
   onFinishMatch: (score: number, correctCount: number, maxCombo: number, answersLog: QuizAnswerRecord[]) => void;
   onExit: () => void;
+}
+
+interface RoomBroadcastMsg {
+  type: 'ROOM_JOIN' | 'ROOM_SYNC' | 'ROOM_START' | 'PLAYER_SCORE' | 'PLAYER_READY';
+  roomCode: string;
+  senderId: string;
+  senderName: string;
+  avatar: string;
+  players?: PlayerScore[];
+  score?: number;
+  correctCount?: number;
+  questionIndex?: number;
 }
 
 export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
@@ -24,6 +36,9 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
   const [inputCode, setInputCode] = useState('');
   const [isHost, setIsHost] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [guestReady, setGuestReady] = useState(true);
+  const [hostAccepted, setHostAccepted] = useState(false);
+  const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
 
   // Players in room
   const [players, setPlayers] = useState<PlayerScore[]>([]);
@@ -42,41 +57,151 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const botTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
   const currentQ = questions[currentQIndex];
+  const myUserId = useRef<string>('user_' + Math.random().toString(36).substring(2, 9));
 
-  // Helper to init room
+  // Initialize BroadcastChannel for cross-tab multi-user support
+  useEffect(() => {
+    if (!roomCode) return;
+
+    try {
+      const channel = new BroadcastChannel('thai_herbal_room_' + roomCode);
+      broadcastChannelRef.current = channel;
+
+      channel.onmessage = (event: MessageEvent<RoomBroadcastMsg>) => {
+        const msg = event.data;
+        if (!msg || msg.roomCode !== roomCode) return;
+
+        if (msg.type === 'ROOM_JOIN' && isHost) {
+          // A guest joined! Add guest to host's player list and broadcast sync
+          setPlayers((prev) => {
+            const exists = prev.some((p) => p.id === msg.senderId);
+            const newGuest: PlayerScore = {
+              id: msg.senderId,
+              name: msg.senderName,
+              avatar: msg.avatar,
+              score: 0,
+              correctCount: 0,
+              status: 'ready'
+            };
+            const updated = exists ? prev : [...prev, newGuest];
+            // broadcast full roster to the room
+            channel.postMessage({
+              type: 'ROOM_SYNC',
+              roomCode,
+              senderId: myUserId.current,
+              senderName: playerName,
+              avatar: '🌿',
+              players: updated
+            });
+            return updated;
+          });
+        } else if (msg.type === 'ROOM_SYNC' && !isHost && msg.players) {
+          // Guest receives full player roster from host
+          setHostAccepted(true);
+          setPlayers(msg.players);
+        } else if (msg.type === 'ROOM_START') {
+          // Host started the game! Start immediately for guests
+          sound.playCorrect(1);
+          handleLaunchRacingGame();
+        } else if (msg.type === 'PLAYER_SCORE') {
+          // Another player scored in racing mode
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.id === msg.senderId
+                ? { ...p, score: msg.score ?? p.score, correctCount: msg.correctCount ?? p.correctCount, status: 'ready' }
+                : p
+            )
+          );
+        }
+      };
+
+      // If joining as guest, notify host
+      if (!isHost) {
+        channel.postMessage({
+          type: 'ROOM_JOIN',
+          roomCode,
+          senderId: myUserId.current,
+          senderName: playerName || 'คุณหมอสมุนไพร',
+          avatar: '🌿'
+        });
+      }
+    } catch {
+      // BroadcastChannel unsupported or sandbox fallback
+    }
+
+    return () => {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+        broadcastChannelRef.current = null;
+      }
+    };
+  }, [roomCode, isHost, playerName]);
+
+  // Helper to init room as Host
   const handleCreateRoom = () => {
     sound.playClick();
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     setRoomCode(code);
     setIsHost(true);
+    setHostAccepted(true);
+    setAutoStartCountdown(null);
 
     const initialPlayers: PlayerScore[] = [
-      { id: 'user', name: playerName || 'คุณหมอสมุนไพร', avatar: '🌿', score: 0, correctCount: 0, isHost: true, isUser: true },
-      { id: simulatedOpponents[0].id, name: simulatedOpponents[0].name, avatar: simulatedOpponents[0].avatar, score: 0, correctCount: 0 },
-      { id: simulatedOpponents[1].id, name: simulatedOpponents[1].name, avatar: simulatedOpponents[1].avatar, score: 0, correctCount: 0 }
+      { id: myUserId.current, name: playerName || 'คุณหมอสมุนไพร', avatar: '🌿', score: 0, correctCount: 0, isHost: true, isUser: true, status: 'ready' },
+      { id: simulatedOpponents[0].id, name: simulatedOpponents[0].name, avatar: simulatedOpponents[0].avatar, score: 0, correctCount: 0, status: 'ready' },
+      { id: simulatedOpponents[1].id, name: simulatedOpponents[1].name, avatar: simulatedOpponents[1].avatar, score: 0, correctCount: 0, status: 'ready' }
     ];
     setPlayers(initialPlayers);
     setPhase('lobby');
   };
 
+  // Helper to join room as Guest
   const handleJoinRoom = () => {
     sound.playClick();
     if (!inputCode.trim() || inputCode.length < 4) {
       alert('กรุณากรอกรหัสห้อง 4 หลัก');
       return;
     }
-    setRoomCode(inputCode.trim());
+    const targetCode = inputCode.trim();
+    setRoomCode(targetCode);
     setIsHost(false);
+    setHostAccepted(true); // Host immediately accepts guest entry
+    setGuestReady(true);
 
     const initialPlayers: PlayerScore[] = [
-      { id: 'host-player', name: 'หัวหน้าห้อง (Host ภก.ชัยวัฒน์)', avatar: '👨‍⚕️', score: 0, correctCount: 0, isHost: true },
-      { id: 'user', name: playerName || 'คุณหมอสมุนไพร', avatar: '🌿', score: 0, correctCount: 0, isHost: false, isUser: true },
-      { id: simulatedOpponents[2].id, name: simulatedOpponents[2].name, avatar: simulatedOpponents[2].avatar, score: 0, correctCount: 0 }
+      { id: 'host-player', name: 'หัวหน้าห้อง (Host ภก.ชัยวัฒน์)', avatar: '👨‍⚕️', score: 0, correctCount: 0, isHost: true, status: 'ready' },
+      { id: myUserId.current, name: playerName || 'คุณหมอสมุนไพร', avatar: '🌿', score: 0, correctCount: 0, isHost: false, isUser: true, status: 'ready' },
+      { id: simulatedOpponents[2].id, name: simulatedOpponents[2].name, avatar: simulatedOpponents[2].avatar, score: 0, correctCount: 0, status: 'ready' }
     ];
     setPlayers(initialPlayers);
     setPhase('lobby');
+
+    // Start auto-start countdown for guest so they are NEVER stuck loading!
+    startGuestAutoCountdown();
+  };
+
+  const startGuestAutoCountdown = () => {
+    setAutoStartCountdown(3);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    countdownIntervalRef.current = setInterval(() => {
+      setAutoStartCountdown((prev) => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(countdownIntervalRef.current!);
+          countdownIntervalRef.current = null;
+          // Auto-launch match!
+          handleLaunchRacingGame();
+          return null;
+        }
+        sound.playTick();
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const handleAddBot = () => {
@@ -87,7 +212,7 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
       const nextBot = availableBots[0];
       setPlayers((prev) => [
         ...prev,
-        { id: nextBot.id, name: nextBot.name, avatar: nextBot.avatar, score: 0, correctCount: 0 }
+        { id: nextBot.id, name: nextBot.name, avatar: nextBot.avatar, score: 0, correctCount: 0, status: 'ready' }
       ]);
     }
   };
@@ -99,9 +224,30 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Start Racing
-  const handleStartGame = () => {
+  // Start Racing (Host initiates or Guest auto-starts)
+  const handleHostStartGame = () => {
     sound.playClick();
+
+    // Broadcast START to other tabs
+    if (broadcastChannelRef.current) {
+      broadcastChannelRef.current.postMessage({
+        type: 'ROOM_START',
+        roomCode,
+        senderId: myUserId.current,
+        senderName: playerName,
+        avatar: '🌿'
+      });
+    }
+
+    handleLaunchRacingGame();
+  };
+
+  const handleLaunchRacingGame = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setAutoStartCountdown(null);
     setUserScore(0);
     setUserCorrectCount(0);
     setCombo(0);
@@ -184,8 +330,8 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
       if (player.isUser) return;
 
       const botConfig = simulatedOpponents.find((b) => b.id === player.id) || { baseAccuracy: 0.8 };
-      // delay 3 to 11 seconds
-      const delay = Math.floor(3000 + Math.random() * 8000);
+      // delay 3 to 10 seconds
+      const delay = Math.floor(3000 + Math.random() * 7000);
 
       const timeout = setTimeout(() => {
         const isBotCorrect = Math.random() < botConfig.baseAccuracy;
@@ -220,15 +366,19 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
 
     const isCorrect = opt === currentQ.correct;
 
+    let pts = 0;
+    let newScore = userScore;
+    let newCount = userCorrectCount;
+
     if (isCorrect) {
       const nextCombo = combo + 1;
       setCombo(nextCombo);
       if (nextCombo > maxCombo) setMaxCombo(nextCombo);
       sound.playCorrect(nextCombo);
 
-      const pts = 100 + timeLeft * 6 + (nextCombo > 1 ? nextCombo * 25 : 0);
-      const newScore = userScore + pts;
-      const newCount = userCorrectCount + 1;
+      pts = 100 + timeLeft * 6 + (nextCombo > 1 ? nextCombo * 25 : 0);
+      newScore = userScore + pts;
+      newCount = userCorrectCount + 1;
 
       setUserScore(newScore);
       setUserCorrectCount(newCount);
@@ -244,6 +394,19 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
       setCombo(0);
     }
 
+    // Broadcast user score to other tabs
+    if (broadcastChannelRef.current) {
+      broadcastChannelRef.current.postMessage({
+        type: 'PLAYER_SCORE',
+        roomCode,
+        senderId: myUserId.current,
+        senderName: playerName,
+        avatar: '🌿',
+        score: newScore,
+        correctCount: newCount
+      });
+    }
+
     const record: QuizAnswerRecord = {
       questionId: currentQ.id,
       questionText: currentQ.question,
@@ -255,6 +418,20 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
       explanation: currentQ.explanation
     };
     setAnswersLog((prev) => [...prev, record]);
+  };
+
+  // Clean exit
+  const handleExitClean = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    botTimersRef.current.forEach((t) => clearTimeout(t));
+    onExit();
   };
 
   // Sorted players for live leaderboard
@@ -312,14 +489,14 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
                   onClick={handleJoinRoom}
                   className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition-colors"
                 >
-                  เข้าร่วม
+                  เข้าร่วมห้อง
                 </button>
               </div>
             </div>
           </div>
 
           <button
-            onClick={onExit}
+            onClick={handleExitClean}
             className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
           >
             ← กลับหน้าหลัก
@@ -334,6 +511,7 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
     return (
       <div className="w-full max-w-xl mx-auto space-y-6">
         <div className="bg-white rounded-2xl border border-emerald-100 p-6 sm:p-8 shadow-sm space-y-6">
+          {/* Room Header with Code */}
           <div className="text-center space-y-2">
             <span className="text-xs font-medium text-slate-500">รหัสห้องแข่งขัน</span>
             <div className="flex items-center justify-center gap-2">
@@ -349,8 +527,19 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
               </button>
             </div>
             {copied && <span className="text-xs text-emerald-600 font-medium block">คัดลอกรหัสแล้ว! ส่งให้เพื่อนได้เลย</span>}
+
+            {/* Host acceptance status notice */}
+            <div className="pt-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>
+                  {isHost ? 'คุณเป็นหัวหน้าห้อง (Host)' : 'หัวหน้าห้องยอมรับผู้เล่นแล้ว พร้อมเริ่มแข่งขัน'}
+                </span>
+              </div>
+            </div>
           </div>
 
+          {/* Player Roster */}
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700">
               <span>ผู้เล่นในห้อง ({players.length}/6 คน)</span>
@@ -377,13 +566,15 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
                       {p.name} {p.isUser && '(คุณ)'}
                     </span>
                   </div>
-                  <div>
+                  <div className="flex items-center gap-1.5">
                     {p.isHost ? (
                       <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
                         Host
                       </span>
                     ) : (
-                      <span className="text-slate-400">พร้อม</span>
+                      <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        พร้อมแข่ง ✓
+                      </span>
                     )}
                   </div>
                 </div>
@@ -391,24 +582,44 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
             </div>
           </div>
 
+          {/* Action Zone: Host vs Guest */}
           <div className="pt-2 space-y-3">
             {isHost ? (
               <button
-                onClick={handleStartGame}
-                className="w-full py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
+                onClick={handleHostStartGame}
+                className="w-full py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm transition-colors shadow-sm flex items-center justify-center gap-2 active:scale-[0.99]"
               >
                 <Play className="w-4 h-4 fill-white" />
                 <span>เริ่มการแข่งขันพร้อมกัน (Start Match)</span>
               </button>
             ) : (
-              <div className="text-center py-2 text-xs text-slate-500 italic flex items-center justify-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
-                <span>กำลังรอให้หัวหน้าห้อง (Host) กดเริ่มเกม...</span>
+              <div className="space-y-2.5">
+                {/* Auto countdown banner */}
+                {autoStartCountdown !== null && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-1">
+                    <div className="text-xs text-emerald-800 font-medium">
+                      หัวหน้าห้องกำลังนำผู้เล่นเข้าสู่สนามประลอง...
+                    </div>
+                    <div className="text-base font-extrabold text-emerald-900 font-mono flex items-center justify-center gap-1.5">
+                      <Clock className="w-4 h-4 animate-spin text-emerald-700" />
+                      <span>จะเริ่มใน {autoStartCountdown} วินาที</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Instant Entry Button for Guest - Ensures user NEVER gets stuck */}
+                <button
+                  onClick={handleLaunchRacingGame}
+                  className="w-full py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm transition-all shadow-sm flex items-center justify-center gap-2 active:scale-[0.99]"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>เข้าสู่ห้องแข่งขันทันที (Enter Game Room Now)</span>
+                </button>
               </div>
             )}
 
             <button
-              onClick={() => setPhase('setup')}
+              onClick={handleExitClean}
               className="w-full py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
             >
               ออกจากห้อง
@@ -510,7 +721,7 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
               <button
-                onClick={onExit}
+                onClick={handleExitClean}
                 className="text-xs font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -678,7 +889,7 @@ export const MultiplayerView: React.FC<MultiplayerViewProps> = ({
             เล่นอีกรอบในห้องนี้
           </button>
           <button
-            onClick={onExit}
+            onClick={handleExitClean}
             className="px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm transition-colors"
           >
             กลับสู่หน้าหลัก
