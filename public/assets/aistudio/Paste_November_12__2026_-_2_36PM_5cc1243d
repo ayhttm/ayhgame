@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมตอบคำถามสมุนไพรไทยในบัญชียาหลักแห่งชาติ</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Noto Sans Thai -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans Thai"', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        clinical: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        tealmed: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #f0fdfa 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        .animate-pulse-subtle {
+            animation: pulse-subtle 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Header Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="app.returnToHome()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-clinical-600 to-tealmed-600 flex items-center justify-center text-white shadow-md">
+                    <i class="fa-solid fa-leaf text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-slate-800 text-base md:text-lg leading-tight">สมุนไพรไทย บัญชียาหลัก</h1>
+                    <p class="text-xs text-slate-500">Thai Herbal NLE Quiz & Multiplayer</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="app.toggleSound()" id="sound-toggle" class="p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors" title="เปิด/ปิดเสียง">
+                    <i class="fa-solid fa-volume-high text-lg"></i>
+                </button>
+                <button onclick="app.openInfoModal()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-clinical-50 text-clinical-700 hover:bg-clinical-100 transition-colors flex items-center space-x-1">
+                    <i class="fa-solid fa-book-medical"></i>
+                    <span class="hidden sm:inline">คู่มือ 10 กลุ่มอาการ</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow flex items-center justify-center p-4 md:p-6 max-w-4xl mx-auto w-full">
+
+        <!-- VIEW 1: HOME SCREEN -->
+        <div id="view-home" class="w-full space-y-6 animate-fadeIn">
+            <div class="glass-card rounded-3xl p-6 md:p-10 shadow-xl text-center space-y-6">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-clinical-100 text-clinical-600 shadow-inner mb-2">
+                    <i class="fa-solid fa-mortar-pestle text-3xl"></i>
+                </div>
+                <div class="space-y-2">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800">ทดสอบความรู้ยาสมุนไพรในบัญชียาหลักแห่งชาติ</h2>
+                    <p class="text-slate-600 max-w-lg mx-auto text-sm md:text-base">
+                        ทบทวน 10 กลุ่มอาการโรคและยาสมุนไพรไทยมาตรฐานกระทรวงสาธารณสุข เลือกโหมดเล่นเดี่ยวหรือสร้างห้องแข่งกับเพื่อนได้ทันที!
+                    </p>
+                </div>
+
+                <div class="max-w-md mx-auto space-y-4 pt-4">
+                    <div>
+                        <label class="block text-left text-xs font-semibold text-slate-600 mb-1">ชื่อผู้เล่น / ฉายาของคุณ</label>
+                        <input type="text" id="player-nickname" placeholder="ระบุชื่อของคุณ..." value="หมอสมุนไพร" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-clinical-500 focus:outline-none text-slate-800 font-medium bg-white shadow-sm">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <button onclick="app.startSoloMode()" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-clinical-600 to-clinical-700 text-white font-semibold shadow-lg hover:shadow-xl hover:from-clinical-700 hover:to-clinical-800 transition-all flex items-center justify-center space-x-3 transform active:scale-95">
+                            <i class="fa-solid fa-user text-lg"></i>
+                            <span>เล่นเดี่ยว (Solo Time Attack)</span>
+                        </button>
+                        <button onclick="app.showMultiplayerModal()" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-tealmed-600 to-tealmed-700 text-white font-semibold shadow-lg hover:shadow-xl hover:from-tealmed-700 hover:to-tealmed-800 transition-all flex items-center justify-center space-x-3 transform active:scale-95">
+                            <i class="fa-solid fa-users text-lg"></i>
+                            <span>โหมดห้องออนไลน์ (Multiplayer)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-center space-x-6 text-xs text-slate-500">
+                    <span class="flex items-center space-x-1"><i class="fa-solid fa-question-circle text-clinical-600"></i><span>10 ข้อสอบคัดสรร</span></span>
+                    <span class="flex items-center space-x-1"><i class="fa-solid fa-stopwatch text-tealmed-600"></i><span>จับเวลาพร้อมคอมโบ</span></span>
+                    <span class="flex items-center space-x-1"><i class="fa-solid fa-award text-amber-500"><span>จัดอันดับโพเดียม</span></i></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: GAMEPLAY SCREEN (SOLO OR MULTIPLAYER ROOM) -->
+        <div id="view-game" class="w-full space-y-6 hidden">
+            <!-- Game Top Bar -->
+            <div class="glass-card rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span id="game-mode-badge" class="px-3 py-1 bg-clinical-100 text-clinical-800 rounded-lg text-xs font-bold uppercase tracking-wide">Solo Mode</span>
+                    <span class="text-xs text-slate-500 font-medium" id="room-code-display"></span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-1 text-slate-700 font-semibold text-sm">
+                        <i class="fa-solid fa-star text-amber-500"></i>
+                        <span id="current-score">0</span> คะแนน
+                    </div>
+                    <div class="flex items-center space-x-1 text-slate-700 font-semibold text-sm bg-slate-100 px-3 py-1 rounded-xl">
+                        <i class="fa-solid fa-stopwatch text-rose-500"></i>
+                        <span id="timer-display">15</span>s
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="glass-card rounded-3xl p-6 md:p-8 shadow-xl space-y-6">
+                <div class="flex items-center justify-between text-xs text-slate-500 font-medium border-b border-slate-100 pb-3">
+                    <span id="question-progress">คำถามข้อที่ 1 จาก 10</span>
+                    <span id="combo-display" class="text-clinical-600 font-bold hidden"><i class="fa-solid fa-bolt"></i> Combo x2</span>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 id="question-text" class="text-lg md:text-xl font-bold text-slate-800 leading-relaxed">
+                        <!-- Question inserted here -->
+                    </h3>
+                </div>
+
+                <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                    <!-- Options inserted here -->
+                </div>
+            </div>
+
+            <!-- Live Multiplayer scoreboard sidebar/modal drawer -->
+            <div id="multiplayer-scoreboard-box" class="glass-card rounded-2xl p-4 shadow-sm hidden">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-ranking-star"></i> คะแนนสดผู้เล่นในห้อง</h4>
+                <div id="live-players-list" class="space-y-2">
+                    <!-- Dynamic live ranking list -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: RESULT & REVIEW SCREEN -->
+        <div id="view-result" class="w-full space-y-6 hidden">
+            <div class="glass-card rounded-3xl p-6 md:p-10 shadow-xl text-center space-y-6">
+                <div id="result-trophy" class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-amber-100 text-amber-600 shadow-lg mb-2 text-4xl animate-bounce">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+
+                <div class="space-y-2">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800" id="result-title">ยอดเยี่ยมมาก!</h2>
+                    <p class="text-slate-600 text-sm md:text-base" id="result-subtitle">คุณทำคะแนนทดสอบยาสมุนไพรไทยได้สำเร็จ</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 max-w-md mx-auto py-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="block text-xs text-slate-500 font-medium">คะแนนรวม</span>
+                        <span class="text-xl font-bold text-clinical-600" id="final-score">0</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="block text-xs text-slate-500 font-medium">ตอบถูก</span>
+                        <span class="text-xl font-bold text-emerald-600" id="final-correct">0/10</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <span class="block text-xs text-slate-500 font-medium">คอมโบสูงสุด</span>
+                        <span class="text-xl font-bold text-amber-600" id="final-combo">x1</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <button onclick="app.showReviewModal()" class="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                        <span>ดูเฉลยและคำอธิบายสมุนไพร</span>
+                    </button>
+                    <button onclick="app.returnToHome()" class="px-6 py-3 rounded-xl bg-clinical-600 text-white font-semibold hover:bg-clinical-700 transition-colors flex items-center justify-center space-x-2 shadow-md">
+                        <i class="fa-solid fa-house"></i>
+                        <span>กลับสู่หน้าหลัก</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="text-center py-4 text-xs text-slate-400">
+        ระบบทดสอบความรู้ยาสมุนไพรในบัญชียาหลักแห่งชาติ กระทรวงสาธารณสุข &bull; Single File Interactive Web App
+    </footer>
+
+    <!-- MODAL: MULTIPLAYER ROOM SETUP -->
+    <div id="modal-multiplayer" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl max-w-md w-full p-6 md:p-8 space-y-6 shadow-2xl relative">
+            <button onclick="app.closeModal('modal-multiplayer')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 bg-tealmed-100 text-tealmed-600 rounded-xl inline-flex items-center justify-center text-xl font-bold shadow-inner">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">โหมดห้องแข่งขันออนไลน์</h3>
+                <p class="text-xs text-slate-500">สร้างห้องใหม่ให้เพื่อนใส่รหัสเข้าร่วม หรือเข้าร่วมห้องที่มีอยู่</p>
+            </div>
+
+            <div class="space-y-4 pt-2">
+                <div class="p-4 rounded-2xl bg-tealmed-50 border border-tealmed-100 space-y-3">
+                    <h4 class="text-xs font-bold text-tealmed-800 uppercase tracking-wide"><i class="fa-solid fa-plus-circle"></i> สร้างห้องใหม่</h4>
+                    <button onclick="app.createRoom()" class="w-full py-3 rounded-xl bg-tealmed-600 text-white font-semibold hover:bg-tealmed-700 transition-colors shadow-sm">
+                        สร้างห้องแข่งขันใหม่ (Host Room)
+                    </button>
+                </div>
+
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-slate-200"></div>
+                    <span class="flex-shrink mx-4 text-xs text-slate-400 uppercase font-semibold">หรือ</span>
+                    <div class="flex-grow border-t border-slate-200"></div>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wide"><i class="fa-solid fa-right-to-bracket"></i> เข้าร่วมห้องด้วยรหัส</h4>
+                    <input type="text" id="room-code-input" placeholder="กรอกรหัสห้อง 4 หลัก (เช่น 8492)" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-tealmed-500 focus:outline-none text-sm font-mono text-center uppercase tracking-widest bg-white">
+                    <button onclick="app.joinRoom()" class="w-full py-3 rounded-xl bg-slate-800 text-white font-semibold hover:bg-slate-900 transition-colors shadow-sm">
+                        เข้าร่วมห้องเพื่อน
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: LOBBY WAITING ROOM -->
+    <div id="modal-lobby" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl max-w-md w-full p-6 md:p-8 space-y-6 shadow-2xl text-center">
+            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl inline-flex items-center justify-center text-2xl font-bold shadow-inner animate-pulse">
+                <i class="fa-solid fa-door-open"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-slate-800">ห้องแข่งขันเตรียมพร้อม</h3>
+                <p class="text-xs text-slate-500 mt-1">รหัสห้องของคุณคือ: <span id="lobby-room-code-badge" class="font-mono font-bold text-clinical-600 text-base bg-clinical-50 px-2 py-0.5 rounded border border-clinical-200">----</span></p>
+            </div>
+
+            <div class="space-y-2 text-left">
+                <label class="block text-xs font-semibold text-slate-600">ผู้เล่นในห้อง (<span id="lobby-player-count">1</span> คน)</label>
+                <div id="lobby-players-box" class="bg-white rounded-2xl p-3 border border-slate-200 max-h-40 overflow-y-auto space-y-2">
+                    <!-- player list -->
+                </div>
+            </div>
+
+            <div id="host-controls" class="pt-2">
+                <button onclick="app.startMultiplayerGame()" class="w-full py-3.5 rounded-xl bg-clinical-600 text-white font-semibold hover:bg-clinical-700 transition-colors shadow-lg">
+                    <i class="fa-solid fa-play"></i> เริ่มเกมพร้อมกันเลย!
+                </button>
+            </div>
+            <div id="guest-waiting-text" class="text-xs text-slate-500 italic hidden">
+                <i class="fa-solid fa-spinner fa-spin"></i> กำลังรอให้หัวหน้าห้อง (Host) กดเริ่มเกม...
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: 10 SYMPTOM GROUPS INFO GUIDE -->
+    <div id="modal-info" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative max-h-[85vh] flex flex-col">
+            <button onclick="app.closeModal('modal-info')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="flex items-center space-x-3 border-b border-slate-200 pb-4">
+                <div class="w-10 h-10 rounded-xl bg-clinical-100 text-clinical-600 flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-book-medical"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">คู่มือ 10 กลุ่มอาการและยาสมุนไพรในบัญชียาหลัก</h3>
+                    <p class="text-xs text-slate-500">ข้อมูลอ้างอิงมาตรฐานบัญชียาหลักแห่งชาติ</p>
+                </div>
+            </div>
+
+            <div class="overflow-y-auto space-y-3 pr-2 text-xs md:text-sm" id="info-groups-list">
+                <!-- Dynamically filled -->
+            </div>
+
+            <div class="pt-2 border-t border-slate-200 text-right">
+                <button onclick="app.closeModal('modal-info')" class="px-5 py-2 rounded-xl bg-slate-800 text-white text-xs font-semibold hover:bg-slate-900 transition-colors">
+                    เข้าใจแล้ว
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REVIEW ANSWERS -->
+    <div id="modal-review" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative max-h-[85vh] flex flex-col">
+            <button onclick="app.closeModal('modal-review')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="flex items-center space-x-3 border-b border-slate-200 pb-4">
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">เฉลยและคำอธิบายยาสมุนไพรไทย</h3>
+                    <p class="text-xs text-slate-500">ทบทวนคำตอบและสรรพคุณที่ถูกต้อง</p>
+                </div>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 pr-2 text-xs md:text-sm" id="review-items-container">
+                <!-- Review list injected here -->
+            </div>
+
+            <div class="pt-2 border-t border-slate-200 text-right">
+                <button onclick="app.closeModal('modal-review')" class="px-5 py-2 rounded-xl bg-slate-800 text-white text-xs font-semibold hover:bg-slate-900 transition-colors">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO SYNTHESIZER (WEB AUDIO API) -->
+    <script>
+        class SoundFX {
+            constructor() {
+                this.enabled = true;
+                this.audioCtx = null;
+            }
+            init() {
+                if (!this.audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioCtx = new AudioContext();
+                }
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+            }
+            playCorrect() {
+                if (!this.enabled) return;
+                this.init();
+                try {
+                    const now = this.audioCtx.currentTime;
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } catch (e) {}
+            }
+            playIncorrect() {
+                if (!this.enabled) return;
+                this.init();
+                try {
+                    const now = this.audioCtx.currentTime;
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.setValueAtTime(130, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } catch (e) {}
+            }
+            playClick() {
+                if (!this.enabled) return;
+                this.init();
+                try {
+                    const now = this.audioCtx.currentTime;
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } catch (e) {}
+            }
+        }
+    </script>
+
+    <!-- MAIN GAME LOGIC -->
+    <script>
+        const questionBank = [
+            {
+                id: 1,
+                group: "1. กลุ่มอาการปวดกล้ามเนื้อและปวดข้อ",
+                question: "ผู้ป่วยมีอาการปวดกล้ามเนื้อและข้อต่ออักเสบเรื้อรัง (เช่น ข้อเข่าเสื่อมหรืออาการตึงเครียดของกล้ามเนื้อ) ยาสมุนไพรในบัญชียาหลักแห่งชาติตัวใดมีความโดดเด่นในการคลายเส้นและลดการอักเสบ?",
+                options: ["ยาเถาวัลย์เปรียง", "ยาฟ้าทะลายโจร", "ยาขมิ้นชัน", "ยาขิง"],
+                correct: "ยาเถาวัลย์เปรียง",
+                explanation: "ยาเถาวัลย์เปรียง มีสรรพคุณเด่นในการบรรเทาอาการปวดกล้ามเนื้อ ปวดข้อ และแก้ปวดหลังปวดเอว ซึ่งใช้ทดแทนยาต้านการอักเสบแผนปัจจุบันได้อย่างมีประสิทธิภาพ"
+            },
+            {
+                id: 2,
+                group: "2. กลุ่มอาการชาจากอัมพฤกษ์-อัมพาต",
+                question: "ผู้ป่วยมีอาการชาบริเวณปลายมือปลายเท้าจากภาวะอัมพฤกษ์-อัมพาต ยาสมุนไพรในบัญชียาหลักแห่งชาติชนิดใดที่แนะนำให้ใช้ทาภายนอกเพื่อกระตุ้นการไหลเวียนโลหิตและบรรเทาอาการชา?",
+                options: ["ยาพริก", "ยาไพล", "ยาว่านหางจระเข้", "ยาทิงเจอร์ทองพันชั่ง"],
+                correct: "ยาพริก",
+                explanation: "ยาพริก (มีสารสำคัญแคปไซซิน Capsaicin) ใช้ทาภายนอกเพื่อบรรเทาอาการปวดปลายประสาทและอาการชาจากอัมพฤกษ์-อัมพาต"
+            },
+            {
+                id: 3,
+                group: "3. กลุ่มอาการไข้หวัด / โควิด-19",
+                question: "เมื่อผู้ป่วยมีอาการไข้หวัด ไอ เจ็บคอ หรือติดเชื้อไวรัสทางเดินหายใจ ยาสมุนไพรในบัญชียาหลักแห่งชาติข้อใดนิยมใช้เป็นลำดับแรกเพื่อลดไข้และต้านการอักเสบ?",
+                options: ["ยาฟ้าทะลายโจร", "ยาธาตุบรรจบ", "ยามะขามแขก", "ยาเบญจกูล"],
+                correct: "ยาฟ้าทะลายโจร",
+                explanation: "ยาฟ้าทะลายโจร (สารสกัดแอนโดรกราโฟไลด์) มีฤทธิ์ลดไข้ บรรเทาอาการเจ็บคอ และต้านการอักเสบในระบบทางเดินหายใจ"
+            },
+            {
+                id: 4,
+                group: "4. กลุ่มอาการทางผิวหนัง / แผล",
+                question: "ในกลุ่มอาการแผลไฟไหม้ น้ำร้อนลวก หรือแผลสด ยาสมุนไพรในบัญชียาหลักแห่งชาติข้อใดมีเนื้อเจลใสช่วยเพิ่มความชุ่มชื้น ลดความร้อน และเร่งการสมานแผล?",
+                options: ["ยาว่านหางจระเข้", "ยาพญายอ", "ยาทิงเจอร์ทองพันชั่ง", "ยาเปลือกมังคุด"],
+                correct: "ยาว่านหางจระเข้",
+                explanation: "ยาว่านหางจระเข้ มีสารมิวโพลิแซคคาไรด์ช่วยบรรเทาอาการปวดแสบปวดร้อนจากแผลไฟไหม้ น้ำร้อนลวก และช่วยสมานแผลผิวหนัง"
+            },
+            {
+                id: 5,
+                group: "5. กลุ่มอาการท้องอืด ท้องเฟ้อ",
+                question: "ผู้ป่วยมาด้วยอาการท้องอืด ท้องเฟ้อ แนุกจุกแน่น และมีลมในกระเพาะอาหารเป็นประจำ ยาสมุนไพรในบัญชียาหลักแห่งชาติขนานใดเหมาะสมที่สุดในการบรรเทาอาการนี้?",
+                options: ["ยาขมิ้นชัน", "ยากล้วย", "ยามะขามแขก", "ยาหอมเทพจิตร"],
+                correct: "ยาขมิ้นชัน",
+                explanation: "ยาขมิ้นชัน ช่วยขับลม บรรเทาอาการท้องอืด ท้องเฟ้อ แน่นจุกเสียด และช่วยสมานแผลในกระเพาะอาหาร"
+            },
+            {
+                id: 6,
+                group: "6. กลุ่มอาการท้องเสีย (ไม่ติดเชื้อ)",
+                question: "หากผู้ป่วยมาด้วยอาการท้องเสียชนิดที่ไม่เกิดจากการติดเชื้อ เช่น อุจจาระเหลวไม่มีไข้ ยาสมุนไพรในบัญชียาหลักแห่งชาติชนิดใดมีสารแทนนินช่วยฝาดสมานและลดการขับถ่าย?",
+                options: ["ยากล้วย", "ยาขิง", "ยาเถาวัลย์เปรียง", "ยาพริก"],
+                correct: "ยากล้วย",
+                explanation: "ยากล้วย (กล้วยน้ำว้าดิบ) มีสารแทนนิน (Tannin) และเซโรโทนิน ช่วยฝาดสมานและยับยั้งการเจริญเติบโตของแบคทีเรียในลำไส้"
+            },
+            {
+                id: 7,
+                group: "7. กลุ่มอาการท้องผูก / ริดสีดวงทวารหนัก",
+                question: "ผู้ป่วยมีอาการท้องผูกเรื้อรังและมีปัญหาริดสีดวงทวารหนักร่วมด้วย ยาสมุนไพรในบัญชียาหลักแห่งชาติกลุ่มใดที่มีส่วนช่วยลดการอักเสบและบรรเทาอาการริดสีดวงทวารโดยตรง?",
+                options: ["ยาผสมเพชรสังฆาต", "ยามะขามแขก", "ยาธาตุบรรจบ", "ยาเบญจกูล"],
+                correct: "ยาผสมเพชรสังฆาต",
+                explanation: "ยาผสมเพชรสังฆาต ช่วยลดการอักเสบ บวม และทำให้หลอดเลือดดำบริเวณทวารหนักหดตัว บรรเทาอาการริดสีดวงทวารหนักได้ดี"
+            },
+            {
+                id: 8,
+                group: "8. กลุ่มอาการเบื่ออาหาร",
+                question: "ผู้ป่วยมีภาวะเบื่ออาหารและระบบย่อยอาหารทำงานไม่ปกติ ยาสมุนไพรในบัญชียาหลักแห่งชาติข้อใดมีรสเผ็ดร้อนช่วยบำรุงธาตุไฟ เจริญอาหาร และขับลม?",
+                options: ["ยาเบญจกูล", "ยามะระขี้นก", "ยาเขียวหอม", "ยาปราบชมพูทวีป"],
+                correct: "ยาเบญจกูล",
+                explanation: "ยาเบญจกูล ประกอบด้วยสมุนไพร 5 ชนิด (ดีปลี, เจตมูลเพลิงแดง, สะค้าน, ชะพลู, ขิง) มีรสเผ็ดร้อน ช่วยแก้ธาตุพิการ เจริญอาหาร และขับลม"
+            },
+            {
+                id: 9,
+                group: "9. กลุ่มอาการวิงเวียนศีรษะ / คลื่นไส้ (กลุ่มอาการทางลม)",
+                question: "ผู้ป่วยมีอาการวิงเวียนศีรษะ หน้ามืด คลื่นไส้อาเจียนจากการเดินทาง (กลุ่มอาการทางลม) ยาสมุนไพรในบัญชียาหลักแห่งชาติขนานใดเหมาะสมที่สุด?",
+                options: ["ยาขิง", "ยาหอมนวโกฐ", "ยาประสะมะแว้ง", "ยาพญายอ"],
+                correct: "ยาขิง",
+                explanation: "ยาขิง มีฤทธิ์เผ็ดร้อนช่วยแก้อาการคลื่นไส้อาเจียน เมารถ เมาเรือ และช่วยขับลมในกระเพาะอาหารได้อย่างยอดเยี่ยม"
+            },
+            {
+                id: 10,
+                group: "10. กลุ่มอาการนอนไม่หลับ",
+                question: "สำหรับผู้ป่วยที่มีอาการนอนไม่หลับ กระสับกระส่าย ใจสั่น สมุนไพรตำรับใดในบัญชียาหลักแห่งชาติที่ช่วยบำรุงหัวใจและทำให้นอนหลับสบายขึ้น?",
+                options: ["ยาหอมเทพจิตร", "ยาขมิ้นชัน", "ยาเถาวัลย์เปรียง", "ยากล้วย"],
+                correct: "ยาหอมเทพจิตร",
+                explanation: "ยาหอมเทพจิตร เป็นตำรับยาหอมโบราณที่มีเครื่องยาพิกัดเกสรและสมุนไพรหอม ช่วยบำรุงหัวใจ แก้ลมวิงเวียน และช่วยให้จิตใจสงบ นอนหลับดีขึ้น"
+            }
+        ];
+
+        class HerbalQuizApp {
+            constructor() {
+                this.sound = new SoundFX();
+                this.mode = 'solo'; // 'solo' or 'multi'
+                this.nickname = 'หมอสมุนไพร';
+                this.roomCode = '';
+                this.isHost = false;
+                this.currentQuestionIndex = 0;
+                this.score = 0;
+                this.correctCount = 0;
+                this.combo = 0;
+                this.maxCombo = 0;
+                this.timer = 15;
+                this.timerInterval = null;
+                this.answeredQuestionsLog = [];
+                this.players = [];
+                this.isMultiplayerActive = false;
+            }
+
+            toggleSound() {
+                this.sound.enabled = !this.sound.enabled;
+                const btn = document.getElementById('sound-toggle');
+                btn.innerHTML = this.sound.enabled ? '<i class="fa-solid fa-volume-high text-lg"></i>' : '<i class="fa-solid fa-volume-xmark text-lg text-slate-400"></i>';
+                this.sound.playClick();
+            }
+
+            switchView(viewId) {
+                ['view-home', 'view-game', 'view-result'].forEach(id => {
+                    document.getElementById(id).classList.add('hidden');
+                });
+                document.getElementById(viewId).classList.remove('hidden');
+            }
+
+            openModal(modalId) {
+                document.getElementById(modalId).classList.remove('hidden');
+                this.sound.playClick();
+            }
+
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.add('hidden');
+                this.sound.playClick();
+            }
+
+            returnToHome() {
+                this.stopTimer();
+                this.isMultiplayerActive = false;
+                this.switchView('view-home');
+                this.sound.playClick();
+            }
+
+            startSoloMode() {
+                this.sound.playClick();
+                const nickInput = document.getElementById('player-nickname').value.trim();
+                if (nickInput) this.nickname = nickInput;
+                
+                this.mode = 'solo';
+                this.currentQuestionIndex = 0;
+                this.score = 0;
+                this.correctCount = 0;
+                this.combo = 0;
+                this.maxCombo = 0;
+                this.answeredQuestionsLog = [];
+
+                document.getElementById('game-mode-badge').textContent = 'Solo Practice';
+                document.getElementById('room-code-display').textContent = `ผู้เล่น: ${this.nickname}`;
+                document.getElementById('multiplayer-scoreboard-box').classList.add('hidden');
+
+                this.switchView('view-game');
+                this.loadQuestion();
+            }
+
+            showMultiplayerModal() {
+                const nickInput = document.getElementById('player-nickname').value.trim();
+                if (nickInput) this.nickname = nickInput;
+                this.openModal('modal-multiplayer');
+            }
+
+            createRoom() {
+                this.sound.playClick();
+                this.roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+                this.isHost = true;
+                this.mode = 'multi';
+                this.players = [{ name: this.nickname, score: 0, isHost: true }];
+                
+                this.closeModal('modal-multiplayer');
+                this.openLobby();
+            }
+
+            joinRoom() {
+                this.sound.playClick();
+                const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+                if (!code || code.length < 4) {
+                    alert('กรุณากรอกรหัสห้อง 4 หลักให้ถูกต้อง');
+                    return;
+                }
+                this.roomCode = code;
+                this.isHost = false;
+                this.mode = 'multi';
+                this.players = [
+                    { name: 'หัวหน้าห้อง (Host)', score: 0, isHost: true },
+                    { name: this.nickname, score: 0, isHost: false }
+                ];
+
+                this.closeModal('modal-multiplayer');
+                this.openLobby();
+            }
+
+            openLobby() {
+                document.getElementById('lobby-room-code-badge').textContent = this.roomCode;
+                document.getElementById('lobby-player-count').textContent = this.players.length;
+                
+                const box = document.getElementById('lobby-players-box');
+                box.innerHTML = this.players.map(p => `
+                    <div class="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <span class="font-medium text-slate-800"><i class="fa-solid fa-user-circle text-clinical-600 mr-2"></i>${p.name}</span>
+                        ${p.isHost ? '<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-bold text-[10px]">Host</span>' : '<span class="text-slate-400">พร้อม</span>'}
+                    </div>
+                `).join('');
+
+                if (this.isHost) {
+                    document.getElementById('host-controls').classList.remove('hidden');
+                    document.getElementById('guest-waiting-text').classList.add('hidden');
+                } else {
+                    document.getElementById('host-controls').classList.add('hidden');
+                    document.getElementById('guest-waiting-text').classList.remove('hidden');
+                    
+                    // Simulate guest auto-start when host starts
+                    setTimeout(() => {
+                        if (document.getElementById('modal-lobby').classList.contains('hidden') === false && !this.isMultiplayerActive) {
+                            // auto sync simulation
+                        }
+                    }, 2000);
+                }
+
+                this.openModal('modal-lobby');
+            }
+
+            startMultiplayerGame() {
+                this.sound.playClick();
+                this.closeModal('modal-lobby');
+                this.isMultiplayerActive = true;
+                this.currentQuestionIndex = 0;
+                this.score = 0;
+                this.correctCount = 0;
+                this.combo = 0;
+                this.maxCombo = 0;
+                this.answeredQuestionsLog = [];
+
+                document.getElementById('game-mode-badge').textContent = `Multiplayer Room: ${this.roomCode}`;
+                document.getElementById('room-code-display').textContent = `ผู้เล่น: ${this.nickname}`;
+                document.getElementById('multiplayer-scoreboard-box').classList.remove('hidden');
+
+                this.updateLiveScoreboard();
+                this.switchView('view-game');
+                this.loadQuestion();
+            }
+
+            updateLiveScoreboard() {
+                const box = document.getElementById('live-players-list');
+                // Simulate slight score fluctuations for simulated opponents in room
+                if (this.mode === 'multi' && Math.random() > 0.6) {
+                    this.players.forEach(p => {
+                        if (p.name !== this.nickname && Math.random() > 0.5) {
+                            p.score += Math.floor(Math.random() * 150);
+                        }
+                    });
+                }
+                // Sort by score descending
+                const sorted = [...this.players].sort((a,b) => b.score - a.score);
+                box.innerHTML = sorted.map((p, idx) => `
+                    <div class="flex items-center justify-between text-xs py-1 px-2 rounded bg-slate-50">
+                        <span class="font-medium text-slate-700">${idx+1}. ${p.name} ${p.name === this.nickname ? '(คุณ)' : ''}</span>
+                        <span class="font-bold text-clinical-600">${p.score} pts</span>
+                    </div>
+                `).join('');
+            }
+
+            loadQuestion() {
+                if (this.currentQuestionIndex >= questionBank.length) {
+                    this.endGame();
+                    return;
+                }
+
+                const q = questionBank[this.currentQuestionIndex];
+                document.getElementById('question-progress').textContent = `คำถามข้อที่ ${this.currentQuestionIndex + 1} จาก ${questionBank.length}`;
+                document.getElementById('question-text').textContent = q.question;
+                
+                // Shuffle options
+                const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+                const container = document.getElementById('options-container');
+                container.innerHTML = '';
+
+                shuffledOptions.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'w-full text-left p-4 rounded-2xl bg-white border border-slate-200 hover:border-clinical-500 hover:bg-clinical-50/50 transition-all text-slate-700 font-medium text-sm flex items-center justify-between group shadow-sm';
+                    btn.innerHTML = `
+                        <span>${opt}</span>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-clinical-600"></i>
+                    `;
+                    btn.onclick = () => this.handleAnswer(opt, q.correct, btn);
+                    container.appendChild(btn);
+                });
+
+                this.startTimer();
+            }
+
+            startTimer() {
+                this.stopTimer();
+                this.timer = 15;
+                document.getElementById('timer-display').textContent = this.timer;
+
+                this.timerInterval = setInterval(() => {
+                    this.timer--;
+                    document.getElementById('timer-display').textContent = this.timer;
+                    if (this.timer <= 0) {
+                        this.stopTimer();
+                        this.handleTimeOut();
+                    }
+                }, 1000);
+            }
+
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }
+
+            handleTimeOut() {
+                const q = questionBank[this.currentQuestionIndex];
+                this.sound.playIncorrect();
+                this.combo = 0;
+                this.updateComboUI();
+                this.answeredQuestionsLog.push({
+                    question: q.question,
+                    userAnswer: '[หมดเวลาตอบ]',
+                    correctAnswer: q.correct,
+                    isCorrect: false,
+                    explanation: q.explanation
+                });
+                this.nextQuestionDelay();
+            }
+
+            handleAnswer(selected, correct, btnElement) {
+                this.stopTimer();
+                const isCorrect = (selected === correct);
+                const buttons = document.querySelectorAll('#options-container button');
+                buttons.forEach(b => b.disabled = true);
+
+                if (isCorrect) {
+                    this.sound.playCorrect();
+                    btnElement.className = 'w-full text-left p-4 rounded-2xl bg-emerald-100 border border-emerald-500 text-emerald-900 font-medium text-sm flex items-center justify-between shadow-md';
+                    btnElement.innerHTML += '<i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>';
+                    
+                    this.correctCount++;
+                    this.combo++;
+                    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+
+                    const pts = 100 + (this.timer * 5) + (this.combo > 1 ? (this.combo * 20) : 0);
+                    this.score += pts;
+                } else {
+                    this.sound.playIncorrect();
+                    btnElement.className = 'w-full text-left p-4 rounded-2xl bg-rose-100 border border-rose-500 text-rose-900 font-medium text-sm flex items-center justify-between shadow-md';
+                    btnElement.innerHTML += '<i class="fa-solid fa-circle-xmark text-rose-600 text-base"></i>';
+
+                    // highlight correct
+                    buttons.forEach(b => {
+                        if (b.textContent.includes(correct)) {
+                            b.className = 'w-full text-left p-4 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-800 font-medium text-sm flex items-center justify-between';
+                        }
+                    });
+
+                    this.combo = 0;
+                }
+
+                document.getElementById('current-score').textContent = this.score;
+                this.updateComboUI();
+
+                // update player score in multi
+                if (this.mode === 'multi') {
+                    const me = this.players.find(p => p.name === this.nickname);
+                    if (me) me.score = this.score;
+                    this.updateLiveScoreboard();
+                }
+
+                const q = questionBank[this.currentQuestionIndex];
+                this.answeredQuestionsLog.push({
+                    question: q.question,
+                    userAnswer: selected,
+                    correctAnswer: correct,
+                    isCorrect: isCorrect,
+                    explanation: q.explanation
+                });
+
+                this.nextQuestionDelay();
+            }
+
+            updateComboUI() {
+                const badge = document.getElementById('combo-display');
+                if (this.combo > 1) {
+                    badge.textContent = `Combo x${this.combo}`;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+
+            nextQuestionDelay() {
+                setTimeout(() => {
+                    this.currentQuestionIndex++;
+                    this.loadQuestion();
+                }, 1400);
+            }
+
+            endGame() {
+                this.stopTimer();
+                this.switchView('view-result');
+                document.getElementById('final-score').textContent = this.score;
+                document.getElementById('final-correct').textContent = `${this.correctCount}/10`;
+                document.getElementById('final-combo').textContent = `x${this.maxCombo}`;
+
+                const titleEl = document.getElementById('result-title');
+                const subEl = document.getElementById('result-subtitle');
+                const trophyEl = document.getElementById('result-trophy');
+
+                if (this.correctCount >= 8) {
+                    titleEl.textContent = 'ยอดเยี่ยมระดับผู้เชี่ยวชาญ!';
+                    subEl.textContent = 'คุณมีความเข้าใจในยาสมุนไพรในบัญชียาหลักแห่งชาติเป็นอย่างดีเยี่ยม';
+                    trophyEl.innerHTML = '<i class="fa-solid fa-trophy"></i>';
+                } else if (this.correctCount >= 5) {
+                    titleEl.textContent = 'ทำได้ดีมาก!';
+                    subEl.textContent = 'คุณมีความรู้พื้นฐานด้านยาสมุนไพรไทยที่ดี สามารถทบทวนเพิ่มเติมได้จากหน้าเฉลย';
+                    trophyEl.innerHTML = '<i class="fa-solid fa-medal"></i>';
+                } else {
+                    titleEl.textContent = 'พยายามอีกนิดนะ!';
+                    subEl.textContent = 'ลองอ่านคู่มือและทบทวนสรรพคุณยาสมุนไพรไทยใหม่อีกรอบเพื่อความแม่นยำ';
+                    trophyEl.innerHTML = '<i class="fa-solid fa-book-open-reader"></i>';
+                }
+            }
+
+            openInfoModal() {
+                this.sound.playClick();
+                const container = document.getElementById('info-groups-list');
+                container.innerHTML = questionBank.map(item => `
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                        <div class="font-bold text-clinical-700 text-xs md:text-sm">${item.group}</div>
+                        <div class="text-slate-800 font-semibold text-xs"><i class="fa-solid fa-prescription-bottle-medical text-tealmet-600 mr-1.5"></i>สมุนไพรหลัก: ${item.correct}</div>
+                        <div class="text-slate-600 text-xs leading-relaxed">${item.explanation}</div>
+                    </div>
+                `).join('');
+                this.openModal('modal-info');
+            }
+
+            showReviewModal() {
+                this.sound.playClick();
+                const container = document.getElementById('review-items-container');
+                container.innerHTML = this.answeredQuestionsLog.map((log, idx) => `
+                    <div class="p-4 rounded-2xl bg-slate-50 border ${log.isCorrect ? 'border-emerald-200 bg-emerald-50/30' : 'border-rose-200 bg-rose-50/30'} space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold">
+                            <span class="text-slate-700">ข้อที่ ${idx+1}</span>
+                            <span class="${log.isCorrect ? 'text-emerald-600' : 'text-rose-600'} flex items-center space-x-1">
+                                <i class="fa-solid ${log.isCorrect ? 'fa-circle-check' : 'fa-circle-xmark'}"></i>
+                                <span>${log.isCorrect ? 'ตอบถูก' : 'ตอบผิด'}</span>
+                            </span>
+                        </div>
+                        <p class="text-slate-800 font-medium text-xs">${log.question}</p>
+                        <div class="text-xs space-y-0.5">
+                            <div class="text-slate-600">คำตอบของคุณ: <span class="font-semibold ${log.isCorrect ? 'text-emerald-700' : 'text-rose-700'}">${log.userAnswer}</span></div>
+                            <div class="text-slate-600">คำตอบที่ถูกต้อง: <span class="font-semibold text-emerald-700">${log.correctAnswer}</span></div>
+                        </div>
+                        <div class="text-xs text-slate-500 bg-white p-2 rounded-xl border border-slate-200 mt-1">
+                            <strong>คำอธิบาย:</strong> ${log.explanation}
+                        </div>
+                    </div>
+                `).join('');
+                this.openModal('modal-review');
+            }
+        }
+
+        const app = new HerbalQuizApp();
+    </script>
+</body>
+</html>
